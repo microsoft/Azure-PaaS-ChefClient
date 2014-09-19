@@ -1,0 +1,19 @@
+{
+  "Name": "InstallationSDK.ChefClientInstaller",
+  "OutputPath": "bin",
+  "Module": {
+    "Id": "461F01C0-4131-4D08-B26A-77BFA521923B",
+    "Name": "InstallationSDK.ChefClientInstaller",
+    "Version": "1.0.0",
+    "Author": "ampdmi",
+    "CompanyName": "Microsoft",
+    "Description": "PowerShell Cmdlets for installing Chef-Client.",
+    "Copyright": "(c) 2014 Microsoft. All rights reserved.",
+    "PowerShellVersion": "3.0",
+    "RequiredModules": []
+  },
+  "Files": {
+    "RootModule": "InstallationSDK.ChefClientInstaller.psm1",
+    "Content": [ "./resources/*.msi"]
+  }
+}
