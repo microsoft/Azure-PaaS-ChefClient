@@ -1,0 +1,9 @@
+{
+  "name": "chefClient",
+  "role": "",
+  "pollInterval": "",
+  "serverUrl": "",
+  "sslVerifyMode": ":verify_none",
+  "validationClientName": "",
+  "validationKey": ""
+}

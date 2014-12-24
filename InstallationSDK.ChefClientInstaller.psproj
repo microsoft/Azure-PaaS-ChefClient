@@ -10,10 +10,10 @@
     "Description": "PowerShell Cmdlets for installing Chef-Client.",
     "Copyright": "(c) 2014 Microsoft. All rights reserved.",
     "PowerShellVersion": "3.0",
-    "RequiredModules": []
+    "RequiredModules": ["InstallationSDK.AzureServiceRuntime"]
   },
   "Files": {
     "RootModule": "InstallationSDK.ChefClientInstaller.psm1",
-    "Content": [ "./resources/*.msi"]
+    "Content": [ "./resources/*.*", "./code/*.*", "./script/*.*" ]
   }
 }
