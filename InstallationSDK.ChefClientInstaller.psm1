@@ -85,7 +85,7 @@ function Get-ChefClientConfig
         "json_attribs" = "";
         "ssl_verify_mode" = ""}
 
-    if ($Path)
+    if ($Path -and (Test-Path -Path $Path))
     {
         # Regex matches simple "somekey value" pattern
         # Parses out custom Ruby (like now = Time.new)
@@ -192,7 +192,7 @@ function Save-ChefClientConfig
         $value = $hashToWrite[$key]
 
         # symbols and numbers should not be surrounded in quotes
-        if (-not $value.StartsWith(":") -and -not ($value -match "^[0-9.]*$"))
+        if (-not $value.StartsWith(":") -and -not ($value -match "^[0-9.]*$") -and -not $value.StartsWith("="))
         {
             $value = "'$value'"
         }

@@ -10,13 +10,25 @@ Write-Output "Script:main.ps1 starting"
 $pathToClientPem = Join-path -Path $RootPath -ChildPath $ClientPem
 $pathToClientRb = Join-path -Path $RootPath -ChildPath $ClientRb
 
-if (Test-Path $PathToClientPem)
-{
-    Write-Output "Script:main.ps1 $pathToClientPem already exists. Nothing to do. Exiting"
-    return
+# Set up the client chef folder structure that our cookbooks use (like PSModules cookbook).
+$dllsPath = [System.IO.Path]::Combine($RootPath, "dlls")
+$PSModulesPath = [System.IO.Path]::Combine($RootPath, "PSModules")
+$ScriptsPath = [System.IO.Path]::Combine($RootPath, "scripts")
+@($RootPath, $dllsPath, $PSModulesPath, $ScriptsPath) | % {
+    if (!(Test-Path -Path $_)) 
+    { 
+        md $_ 
+    }
 }
 
-# Add approot module path
+# Persist the PSModulesPath for client execution to find our Share Modules Cookbook.
+if (!($env:PSModulePath.Contains($PSModulesPath)))
+{
+    $env:PSModulePath += ";" + $PSModulesPath
+    [Environment]::SetEnvironmentVariable("PSModulePath", $env:PSModulePath,  [System.EnvironmentVariableTarget]::Machine)
+}
+
+# Add approot module path for this session
 $modulePath = resolve-Path -Path $PSScriptRoot\Modules
 if(-not $env:PSModulePath.Contains($modulePath.Path))
 {
@@ -39,7 +51,7 @@ $ClientRbObject = $null
 # Get template Client.rb file, if it exists
 $TemplateClientRb = Join-Path $PSScriptRoot $ClientRb
 
-$ClientRbObject = Get-ChefClientConfig
+$ClientRbObject = Get-ChefClientConfig -Path $pathToClientRb
 
 # Set node name. Format: [cloud service name]_IN_[Azure instance number]
 Get-CloudServiceRoleInstance -ErrorAction Continue | out-Null
@@ -79,6 +91,16 @@ if (-not $url -and ($config -and $config.serverUrl))
 
 if ($url)
 {
+    # Clear client pem to register with new server.
+    if($ClientRbObject.chef_server_url -ne $url)
+    {
+        if(test-path -Path $pathToClientPem)
+        {
+            remove-item -Path $pathToClientPem -Force
+        }
+        $ClientRbObject.node_name = ""
+    }
+    
     $ClientRbObject.chef_server_url = $url
     Write-Output "Set chef url to: $url"
 
@@ -93,21 +115,13 @@ if ($url)
         $ClientRbObject.validation_client_name = $validationClientName
         Write-Output "Set Validation Client Name to '$validationClientName'"
 
-        # Temporarily set node name to validation client name. This is so we can call node list and determine what names are available
-        $ClientRbObject.node_name = $validationClientName
     }
     else
     {
         throw "Validation client name must be set if serverUrl is defined"
     }
 
-    # Try to get validationKey from Cloud Service CsCfg first. If not, check the config.json
-    # Value from Cloud Service CsCfg always wins.
-    $validationKey = Get-CloudServiceConfigurationSettingValue "ChefClient_ValidationKey"
-    if (-not $validationKey -and ($config -and $config.validationKey))
-    {
-        $validationKey = $config.validationKey
-    }
+    $validationKey = $config.validationKey
 
     if ($validationKey)
     {
@@ -123,61 +137,70 @@ if ($url)
         Copy-Item $validationKeyTemp $pathToValidationKey -Force
         $ClientRBObject.validation_key = $pathToValidationKey
         Write-Output "Set validation key to '$pathToValidationKey'"
-
-        # Temporarily set node name to validation client name. This is so we can call node list and determine what names are available
-        $ClientRbObject.client_key = $pathToValidationKey
     }
     else
     {
         throw "Validation key must be set if serverUrl is defined"
     }
 
-    #
-    # Check if the node's name is available
-    #
-    $tempConfigFile = $null
-    try
+    if ($config -and $config.pollInterval)
     {
-        $tempConfigFile = [IO.Path]::GetRandomFileName()
-        Copy-Item -Path $TemplateClientRb -Destination $tempConfigFile
-        Save-ChefClientConfig -InputObject $ClientRbObject -Path $tempConfigFile -Append
-        $nodes = Get-ChefNodeList -Config $tempConfigFile
+        $interval = $config.pollInterval
+        $ClientRbObject.interval = $interval
+        Write-Output "Set poll interval to: $interval seconds"
     }
-    finally
+    else
     {
-        if ($tempConfigFile)
+        Write-Output "Poll Interval not set. Default value (if not set) is 1800s (30m)."
+    }
+
+    #Check if the client.rb already has a node_name
+    if((-not [System.String]::IsNullOrWhiteSpace($ClientRbObject.node_name) -and (Test-Path $pathToClientPem)))
+    {
+        Write-Output "Script:main.ps1 $pathToClientPem already exists. Register as existing node."
+    }
+    else
+    {        
+        #
+        # Check if the node's name is available
+        #
+        $tempConfigFile = $null
+        try
         {
-            Remove-Item -Path $tempConfigFile -ErrorAction SilentlyContinue
+            $tempConfigFile = [IO.Path]::GetRandomFileName()
+            Copy-Item -Path $TemplateClientRb -Destination $tempConfigFile
+            
+            # Temporarily set node name to validation client name key. This is so we can call node list and determine what names are available
+            $ClientRbObject.client_key = $pathToValidationKey
+            $ClientRbObject.node_name = $validationClientName
+            Save-ChefClientConfig -InputObject $ClientRbObject -Path $tempConfigFile -Append
+            $nodes = Get-ChefNodeList -Config $tempConfigFile
         }
-    }
-    
-    # increment the node name until one exists that doesn't conflict
-    $baseName = $nodeName
-    for($i = 1; $nodes.Contains($nodeName) ;$i++)
-    {
-        $nodeName = "$baseName{0}" -f ".$i"
+        finally
+        {
+            if ($tempConfigFile)
+            {
+                Remove-Item -Path $tempConfigFile -ErrorAction SilentlyContinue
+            }
+        }
+
+        # increment the node name until one exists that doesn't conflict
+        $baseName = $nodeName
+        for($i = 1; $nodes.Contains($nodeName) ;$i++)
+        {
+            $nodeName = "$baseName{0}" -f ".$i"
+        }
+
+        # Alter client.rb with new node name
+        $ClientRbObject.node_name = $nodeName
+        Write-Output "Set chef node_name to: $nodeName"
+        $ClientRbObject.client_key = $pathToClientPem
+        Write-Output "Set chef client_key to: $pathToClientRb"
     }
 }
 else
 {
     Write-Output "chef url not set in configuration file. Node will not register with Chef Server."
-}
-
-# Alter client.rb with new node name
-$ClientRbObject.node_name = $nodeName
-Write-Output "Set chef node_name to: $nodeName"
-$ClientRbObject.client_key = $pathToClientPem
-Write-Output "Set chef client_key to: $pathToClientRb"
-
-if ($config -and $config.pollInterval)
-{
-    $interval = $config.pollInterval
-    $ClientRbObject.interval = $interval
-    Write-Output "Set poll interval to: $interval seconds"
-}
-else
-{
-    Write-Output "Poll Interval not set. Default value (if not set) is 1800s (30m)."
 }
 
 # Create first-run-bootstrap.json to register new node with Chef Server

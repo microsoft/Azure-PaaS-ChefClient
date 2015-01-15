@@ -5,8 +5,10 @@
 // --------------------------------------------------------------------------------------------------------------------
 namespace Microsoft.OnlinePublishing.Chef
 {
+    using Microsoft.WindowsAzure.ServiceRuntime;
     using System;
     using System.Diagnostics;
+    using System.Linq;
     using System.ServiceProcess;
 
     /// <summary>
@@ -55,7 +57,7 @@ namespace Microsoft.OnlinePublishing.Chef
                 Trace.TraceInformation("Chef Client - Invalid Operation, is the role running with elevated privledges. Ex:{0}.", e.ToString());
             }
         }
-        
+
         /// <summary>
         /// Start Chef Client windows service. 
         /// </summary>
@@ -63,6 +65,8 @@ namespace Microsoft.OnlinePublishing.Chef
         {
             try
             {
+                RoleEnvironment.Changing += ChefServerURLChanging;
+
                 // Start Chef Client - wait 30 seconds
                 Trace.TraceInformation("Chef Client - Attempting to start Chef-Client.");
                 using (var chefService = new ServiceController("chef-client"))
@@ -86,6 +90,25 @@ namespace Microsoft.OnlinePublishing.Chef
             catch (InvalidOperationException e)
             {
                 Trace.TraceInformation("Chef Client - Invalid Operation, is the role running with elevated privledges. Ex:{0}.", e.ToString());
+            }
+        }
+
+        /// <summary>
+        /// Handle configuration change events for ChefClient_ServerURL. This will canccel the event and force a 
+        /// Role Restart so that the client scripts (main.ps1) will reset a new connection and client registration with the new Server.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private static void ChefServerURLChanging(object sender, RoleEnvironmentChangingEventArgs e)
+        {
+            var configurationChanges = e.Changes.OfType<RoleEnvironmentConfigurationSettingChange>().ToList();
+
+            if (!configurationChanges.Any()) return;
+
+            if (configurationChanges.Any(c => c.ConfigurationSettingName == "ChefClient_ServerUrl"))
+            {
+                Stop(new TimeSpan(0, 0, 5));
+                e.Cancel = true;
             }
         }
     }
