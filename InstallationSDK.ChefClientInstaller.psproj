@@ -4,7 +4,7 @@
   "Module": {
     "Id": "461F01C0-4131-4D08-B26A-77BFA521923B",
     "Name": "InstallationSDK.ChefClientInstaller",
-    "Version": "0.1.3",
+    "Version": "0.1.4",
     "Author": "icechef@microsoft.com",
     "CompanyName": "Microsoft",
     "Description": "PowerShell Cmdlets for installing Chef-Client.",

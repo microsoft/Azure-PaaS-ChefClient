@@ -3,7 +3,8 @@
   "role": "",
   "pollInterval": "",
   "serverUrl": "",
-  "sslVerifyMode": ":verify_none",
+  "sslVerifyMode": "",
   "validationClientName": "",
-  "validationKey": ""
+  "validationKey": "",
+  "encrypted_data_bag_secret_file":  ""
 }

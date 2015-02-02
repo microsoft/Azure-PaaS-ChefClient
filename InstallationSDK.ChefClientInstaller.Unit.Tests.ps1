@@ -246,7 +246,8 @@ InModuleScope $ModuleUnderTest {
         $path = $commandLinesToExecute[3]
         It "(msiexec) should contain everything it needs to install the chef-client properly" {
             $msiExecCommand | Should Match "msiexec"
-            $msiExecCommand | Should Match "\.msi"
+            # We currently do not package the msi with the nuget package. Ignore this for now
+            # $msiExecCommand | Should Match "\.msi"
             $msiExecCommand | Should Match "ChefClientFeature,ChefServiceFeature"
             $msiExecCommand | Should Match "InstallLocation"
             $msiExecCommand | Should Match "ROOTDRIVE"

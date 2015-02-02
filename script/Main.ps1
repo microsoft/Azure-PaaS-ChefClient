@@ -44,7 +44,7 @@ Import-Module InstallationSDK.AzureServiceRuntime
 
 # Go ahead and install, we'll need the knife tool later
 # Override the rootdrive, for Azure
-Install-ChefClient -RootDrive "C:" -RootPath $RootPath
+Install-ChefClient -RootDrive "C:" -RootPath $RootPath -LogFile ("client_{0}.log" -f [DateTime]::Today.ToString("yyyyMMdd"))
 
 $ClientRbObject = $null
 
@@ -79,6 +79,43 @@ if ($config -and $config.sslVerifyMode)
     {
         Write-Warning "`"ssl_verify_mode: '$sslVerifyMode'`" should only be used for testing purposes only!"
     }
+}
+
+# Set the default encrypted_data_bag_secret
+
+#
+# Get Value (actual key) from RoleEnvironment
+#
+
+$encryptedDataBagSecret = Get-CloudServiceConfigurationSettingValue "ChefClient_EncryptedDataBagSecret"
+if ($encryptedDataBagSecret)
+{
+	$pathToEncryptedDataBagSecret = Join-path -Path $RootPath -ChildPath "encrypted_data_bag_secret"
+    $encryptedDataBagSecret | Set-Content -Path $pathToEncryptedDataBagSecret -Force
+
+    Write-Output "Encrypted Data Bag Secret set to: $encryptedDataBagSecret"
+}
+elseif ($config -and $config.encrypted_data_bag_secret_file)
+{
+	$encryptedDataBagSecretFile = $config.encrypted_data_bag_secret_file
+
+	# Ensure the secret exists with that filename
+    $encryptedDataBagSecretFileTemp = Join-Path $PSScriptRoot $encryptedDataBagSecretFile 
+    if (-not (Test-Path $encryptedDataBagSecretFileTemp))
+    {
+        throw "Did not find the encrypted_data_bag_secret at path $encryptedDataBagSecretFileTemp"
+    }
+        
+	$pathToEncryptedDataBagSecret = Join-path -Path $RootPath -ChildPath $encryptedDataBagSecretFile
+
+    Copy-Item $encryptedDataBagSecretFileTemp $pathToEncryptedDataBagSecret -Force
+}
+
+if ($pathToEncryptedDataBagSecret)
+{
+	$ClientRbObject.encrypted_data_bag_secret = $pathToEncryptedDataBagSecret 
+
+    Write-Output "Set encrypted_data_bag to: $pathToEncryptedDataBagSecret"
 }
 
 # Try to get server_url from Cloud Service CsCfg first. If not, check the config.json

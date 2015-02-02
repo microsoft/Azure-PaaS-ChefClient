@@ -19,13 +19,18 @@ function Install-ChefClient
     .EXAMPLE
       Install-ChefClient -verbose
   #>
-
+  [CmdLetBinding()]
   param(
-    $InstallLocation = "C:\Opscode",
-    $RootDrive = $env:SystemDrive,
-    $RootPath = "C:\Chef",
-    $ConfigFile = "Client.rb",
-    $LogFile = "client.log"
+    [ValidateNotNullOrEmpty()]
+    [string] $InstallLocation = "C:\Opscode",
+    [ValidateNotNullOrEmpty()]
+    [string] $RootDrive = $env:SystemDrive,
+    [ValidateNotNullOrEmpty()]
+    [string] $RootPath = "C:\Chef",
+    [ValidateNotNullOrEmpty()]
+    [string] $ConfigFile = "Client.rb",
+    [ValidateNotNullOrEmpty()]
+    [string] $LogFile = "client.log"
   )
 
     Process
@@ -66,8 +71,10 @@ function Get-ChefClientConfig
     .EXAMPLE
       Get-ChefClientConfig 
   #>
+  [CmdLetBinding()]
   param(
-    $Path = $null
+    [AllowNull()]
+    [string] $Path = $null
   )
 
   Process
@@ -79,6 +86,7 @@ function Get-ChefClientConfig
         "client_key" = "";
         "node_name" = "";
         "chef_server_url" = "";
+		"encrypted_data_bag_secret" = "";
         "validation_client_name" = "";
         "validation_key" = "";
         "interval" = "";
@@ -89,8 +97,6 @@ function Get-ChefClientConfig
     {
         # Regex matches simple "somekey value" pattern
         # Parses out custom Ruby (like now = Time.new)
-        # Use -Template in Save-ChefClientConfig to get back custom ruby script
-        # (Side note, I don't really like this implemention. Probably needs to be replaced with something more robust)
         Get-Content -Path $Path | foreach  {
             if (-not ($_ -match "^[a-zA-Z0-9_]*\s*[:'`"0-9].*['`"]?" ))
             {
@@ -133,13 +139,12 @@ function Save-ChefClientConfig
   #>
   [CmdLetBinding(DefaultParameterSetName="Append")]
   param(
-    [Parameter(Mandatory=$true, ValueFromPipeline=$true)]
+    [Parameter(Mandatory, ValueFromPipeline)]
     $InputObject,
 
-    [Parameter(Mandatory=$true)]
-    $Path = $null,
-
-    $Template = $null,
+    [Parameter(Mandatory)]
+    [ValidateNotNullOrEmpty()]
+    [string]$Path,
 
     [Parameter(ParameterSetName="Append")]
     [switch]$Append = $false,
@@ -233,8 +238,9 @@ function Get-ChefNodeList
     .EXAMPLE
       Get-ChefNodeList
   #>
-
+  [CmdletBinding()]
   param(
+    [AllowNull()]
     $Config
   )
 
@@ -274,18 +280,31 @@ function Get-ChefNodeList
 function Invoke-Knife
 {
     knife $args
+    if ($LASTEXITCODE -ne 0)
+    {
+        throw "Knife exited with error code: $LASTEXITCODE"
+    }
 }
 
 function Invoke-SC
 {
     sc.exe $args
+
+    if ($LASTEXITCODE -ne 0)
+    {
+        throw "sc.exe exited with error code: $LASTEXITCODE"
+    }
 }
 
 
 # Same with env:path
 function Set-Path
 {
-param($newPath)
+[CmdletBinding()]
+param(
+  [ValidateNotNullOrEmpty()]
+  [string]$newPath
+)
 
     if (-not $env:Path.Contains($newPath))
     {
