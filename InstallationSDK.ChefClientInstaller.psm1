@@ -86,12 +86,13 @@ function Get-ChefClientConfig
         "client_key" = "";
         "node_name" = "";
         "chef_server_url" = "";
-		"encrypted_data_bag_secret" = "";
+        "encrypted_data_bag_secret" = "";
         "validation_client_name" = "";
         "validation_key" = "";
         "interval" = "";
         "json_attribs" = "";
-        "ssl_verify_mode" = ""}
+        "ssl_verify_mode" = ""; 
+        "environment" = "_default"}
 
     if ($Path -and (Test-Path -Path $Path))
     {

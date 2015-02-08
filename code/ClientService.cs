@@ -5,6 +5,7 @@
 // --------------------------------------------------------------------------------------------------------------------
 namespace Microsoft.OnlinePublishing.Chef
 {
+    using Microsoft.WindowsAzure;
     using Microsoft.WindowsAzure.ServiceRuntime;
     using System;
     using System.Diagnostics;
@@ -16,6 +17,11 @@ namespace Microsoft.OnlinePublishing.Chef
     /// </summary>
     public static class ClientService
     {
+        /// <summary>
+        /// Path to find the status check file for determining if instance should be busy
+        /// </summary>
+        private static string statusCheckFilePath;
+
         /// <summary>
         /// Stop the Chef Client windows service with the default wait time of 1 minute.
         /// </summary>
@@ -50,11 +56,11 @@ namespace Microsoft.OnlinePublishing.Chef
             }
             catch (System.ServiceProcess.TimeoutException)
             {
-                Trace.TraceInformation("Chef Client - failed to stop Chef Client in time alloted [{0}].", timeToWait);
+                Trace.TraceInformation("Chef Client - failed to stop Chef Client in time allotted [{0}].", timeToWait);
             }
             catch (InvalidOperationException e)
             {
-                Trace.TraceInformation("Chef Client - Invalid Operation, is the role running with elevated privledges. Ex:{0}.", e.ToString());
+                Trace.TraceInformation("Chef Client - Invalid Operation, is the role running with elevated privileges. Ex:{0}.", e.ToString());
             }
         }
 
@@ -65,7 +71,8 @@ namespace Microsoft.OnlinePublishing.Chef
         {
             try
             {
-                RoleEnvironment.Changing += ChefServerURLChanging;
+                RoleEnvironment.Changing += ChefConfigChanging;
+                RoleEnvironment.StatusCheck += Chef_StatusCheck;
 
                 // Start Chef Client - wait 30 seconds
                 Trace.TraceInformation("Chef Client - Attempting to start Chef-Client.");
@@ -82,6 +89,8 @@ namespace Microsoft.OnlinePublishing.Chef
                         Trace.TraceInformation("Chef Client - Chef-Client previously running.");
                     }
                 }
+
+                ClientService.statusCheckFilePath = CloudConfigurationManager.GetSetting("ChefClient_SetBusyCheck");
             }
             catch (System.ServiceProcess.TimeoutException)
             {
@@ -89,23 +98,46 @@ namespace Microsoft.OnlinePublishing.Chef
             }
             catch (InvalidOperationException e)
             {
-                Trace.TraceInformation("Chef Client - Invalid Operation, is the role running with elevated privledges. Ex:{0}.", e.ToString());
+                Trace.TraceInformation("Chef Client - Invalid Operation, is the role running with elevated privileges. Ex:{0}.", e.ToString());
             }
         }
 
         /// <summary>
-        /// Handle configuration change events for ChefClient_ServerURL. This will canccel the event and force a 
-        /// Role Restart so that the client scripts (main.ps1) will reset a new connection and client registration with the new Server.
+        /// Handle Azure status check events to set the role as busy if the lock file is missing.
         /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private static void ChefServerURLChanging(object sender, RoleEnvironmentChangingEventArgs e)
+        /// <param name="sender">Sender object</param>
+        /// <param name="e">Event arguments</param>
+        static void Chef_StatusCheck(object sender, RoleInstanceStatusCheckEventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(ClientService.statusCheckFilePath) || 
+                System.IO.File.Exists(ClientService.statusCheckFilePath))
+            {
+                return;
+            }
+            e.SetBusy();
+        }
+
+        /// <summary>
+        /// Handle configuration change events for ChefClient_ServerURL, ChefClient_Role, or ChefClient_Environment. 
+        /// This will cancel the event and force a Role Restart so that the client scripts (main.ps1) will reset a new 
+        /// connection and client registration with the new Server.
+        /// </summary>
+        /// <param name="sender">Sender object</param>
+        /// <param name="e">Event arguments</param>
+        private static void ChefConfigChanging(object sender, RoleEnvironmentChangingEventArgs e)
         {
             var configurationChanges = e.Changes.OfType<RoleEnvironmentConfigurationSettingChange>().ToList();
 
             if (!configurationChanges.Any()) return;
 
-            if (configurationChanges.Any(c => c.ConfigurationSettingName == "ChefClient_ServerUrl"))
+            if (configurationChanges.Any(c => c.ConfigurationSettingName == "ChefClient_SetBusyCheck"))
+            {
+                ClientService.statusCheckFilePath = CloudConfigurationManager.GetSetting("ChefClient_SetBusyCheck");
+            }
+
+            if (configurationChanges.Any(c => c.ConfigurationSettingName == "ChefClient_ServerUrl" || 
+                c.ConfigurationSettingName == "ChefClient_Role" || 
+                c.ConfigurationSettingName == "ChefClient_Environment" ))
             {
                 Stop(new TimeSpan(0, 0, 5));
                 e.Cancel = true;

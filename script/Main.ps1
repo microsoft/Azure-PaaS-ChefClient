@@ -90,30 +90,30 @@ if ($config -and $config.sslVerifyMode)
 $encryptedDataBagSecret = Get-CloudServiceConfigurationSettingValue "ChefClient_EncryptedDataBagSecret"
 if ($encryptedDataBagSecret)
 {
-	$pathToEncryptedDataBagSecret = Join-path -Path $RootPath -ChildPath "encrypted_data_bag_secret"
+    $pathToEncryptedDataBagSecret = Join-path -Path $RootPath -ChildPath "encrypted_data_bag_secret"
     $encryptedDataBagSecret | Set-Content -Path $pathToEncryptedDataBagSecret -Force
 
     Write-Output "Encrypted Data Bag Secret set to: $encryptedDataBagSecret"
 }
 elseif ($config -and $config.encrypted_data_bag_secret_file)
 {
-	$encryptedDataBagSecretFile = $config.encrypted_data_bag_secret_file
+    $encryptedDataBagSecretFile = $config.encrypted_data_bag_secret_file
 
-	# Ensure the secret exists with that filename
+    # Ensure the secret exists with that filename
     $encryptedDataBagSecretFileTemp = Join-Path $PSScriptRoot $encryptedDataBagSecretFile 
     if (-not (Test-Path $encryptedDataBagSecretFileTemp))
     {
         throw "Did not find the encrypted_data_bag_secret at path $encryptedDataBagSecretFileTemp"
     }
         
-	$pathToEncryptedDataBagSecret = Join-path -Path $RootPath -ChildPath $encryptedDataBagSecretFile
+    $pathToEncryptedDataBagSecret = Join-path -Path $RootPath -ChildPath $encryptedDataBagSecretFile
 
     Copy-Item $encryptedDataBagSecretFileTemp $pathToEncryptedDataBagSecret -Force
 }
 
 if ($pathToEncryptedDataBagSecret)
 {
-	$ClientRbObject.encrypted_data_bag_secret = $pathToEncryptedDataBagSecret 
+    $ClientRbObject.encrypted_data_bag_secret = $pathToEncryptedDataBagSecret 
 
     Write-Output "Set encrypted_data_bag to: $pathToEncryptedDataBagSecret"
 }
@@ -240,11 +240,16 @@ else
     Write-Output "chef url not set in configuration file. Node will not register with Chef Server."
 }
 
+# Value from Cloud Service CsCfg always wins.
+$chefRole = Get-CloudServiceConfigurationSettingValue "ChefClient_Role"
 # Create first-run-bootstrap.json to register new node with Chef Server
-if ($config -and $config.role)
+if ($chefRole -or ($config -and $config.role))
 {
     # Register with the correct update domain role [role name]
-    $chefRole = $($config.role)
+    if (-not $chefRole)
+    {
+        $chefRole = $($config.role)
+    }
     $bootStrapperFile = "first-run-bootstrap.json"
     $bootStrapper = "{`r`n `"run_list`": [ `"role[$chefRole]`" ]`r`n}"
     Write-Output "Setting bootstrap content: $bootStrapper"
@@ -254,6 +259,13 @@ if ($config -and $config.role)
     $ClientRbObject.json_attribs = $pathToBootStrapper
     
     Write-Output "Set bootstrapper path to: '$pathToBootStrapper'"
+}
+
+# Value from Cloud Service CsCfg always wins.
+$chefEnvironment = Get-CloudServiceConfigurationSettingValue "ChefClient_Environment"
+if ($chefEnvironment)
+{
+    $ClientRbObject.environment = $chefEnvironment
 }
 
 Copy-Item -Path $TemplateClientRb -Destination $pathToClientRb -Force
