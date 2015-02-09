@@ -201,25 +201,22 @@ if ($url)
         #
         # Check if the node's name is available
         #
-        $tempConfigFile = $null
-        try
-        {
-            $tempConfigFile = [IO.Path]::GetRandomFileName()
-            Copy-Item -Path $TemplateClientRb -Destination $tempConfigFile
+        $knifeConfigFile = $null
+
+        $knifeConfigFile = "knife.rb"
+        Copy-Item -Path $TemplateClientRb -Destination $knifeConfigFile -Force
+
+        # Temporarily set node name to validation client name key. This is so we can call node list 
+        # and determine what names are available. Make sure to remove the environment property.
+        $knifeRbObject = $ClientRbObject.PSObject.Copy()
+        $knifeRbObject.client_key = $pathToValidationKey
+        $knifeRbObject.node_name = $validationClientName
+        $knifeRbObject.PSObject.Properties.Remove('environment')
+
+        Save-ChefClientConfig -InputObject $knifeRbObject -Path $knifeConfigFile -Overwrite
             
-            # Temporarily set node name to validation client name key. This is so we can call node list and determine what names are available
-            $ClientRbObject.client_key = $pathToValidationKey
-            $ClientRbObject.node_name = $validationClientName
-            Save-ChefClientConfig -InputObject $ClientRbObject -Path $tempConfigFile -Append
-            $nodes = Get-ChefNodeList -Config $tempConfigFile
-        }
-        finally
-        {
-            if ($tempConfigFile)
-            {
-                Remove-Item -Path $tempConfigFile -ErrorAction SilentlyContinue
-            }
-        }
+        #run node list
+        $nodes = Get-ChefNodeList -Config $knifeConfigFile
 
         # increment the node name until one exists that doesn't conflict
         $baseName = $nodeName
