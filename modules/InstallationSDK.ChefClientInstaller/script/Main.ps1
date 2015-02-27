@@ -64,6 +64,14 @@ if ($config -and $config.name)
     $name = $config.name
 }
 
+# Allow to pull from CSCFG allowing for easier targetting of node name prefix, this can only be set on initial deployment
+# once the node name is established, the exisitng name will always win.
+$cscfgName = Get-CloudServiceConfigurationSettingValue "ChefClient_Name"
+if ($cscfgName)
+{
+    $name = $cscfgName
+}
+
 # Add Instance number to the node name
 Write-Output "Role Instance Name: $($roleInstance.Id)"
 $nodeName = $($roleInstance.Id).Replace($roleName, $name)

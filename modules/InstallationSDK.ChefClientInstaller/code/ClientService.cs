@@ -25,43 +25,21 @@ namespace Microsoft.OnlinePublishing.Chef
         /// <summary>
         /// Stop the Chef Client windows service with the default wait time of 1 minute.
         /// </summary>
-        public static void Stop()
+        /// <param name="terminateOnFailure">Should the process terminate the processes of the Client service if it failes to stop in alloted time.</param>
+        public static void Stop(bool terminateOnFailure)
         {
-            Stop(new TimeSpan(0, 1, 0));
+            Stop(new TimeSpan(0, 1, 0), terminateOnFailure);
         }
 
         /// <summary>
         /// Stop the Chef Client windows service.
         /// </summary>
         /// <param name="timeToWait">Wait time for operation to complete.</param>
-        public static void Stop(TimeSpan timeToWait)
+        /// <param name="terminateOnFailure">Should the process terminate the processes of the Client service if it failes to stop in alloted time.</param>
+        public static void Stop(TimeSpan timeToWait, bool terminateOnFailure)
         {
-            try
-            {
-                // Stop Chef Client 
-                Trace.TraceInformation("Chef Client - attempting to stop the Chef Client windows service.");
-                using (var chefService = new ServiceController("chef-client"))
-                {
-                    if (chefService != null && chefService.Status != ServiceControllerStatus.Stopped)
-                    {
-                        chefService.Stop();
-                        chefService.WaitForStatus(ServiceControllerStatus.Stopped, timeToWait);
-                        Trace.TraceInformation("Chef Client - Chef Client windows service Stopped.");
-                    }
-                    else
-                    {
-                        Trace.TraceInformation("Chef Client - Chef Client windows service is not running.");
-                    }
-                }
-            }
-            catch (System.ServiceProcess.TimeoutException)
-            {
-                Trace.TraceInformation("Chef Client - failed to stop Chef Client in time allotted [{0}].", timeToWait);
-            }
-            catch (InvalidOperationException e)
-            {
-                Trace.TraceInformation("Chef Client - Invalid Operation, is the role running with elevated privileges. Ex:{0}.", e.ToString());
-            }
+            var service = new WindowsService() { Name = "chef-client", TerminateOnFailure = terminateOnFailure, TimeToWait = timeToWait };
+            service.Stop();
         }
 
         /// <summary>
@@ -69,37 +47,21 @@ namespace Microsoft.OnlinePublishing.Chef
         /// </summary>
         public static void Start()
         {
-            try
-            {
-                RoleEnvironment.Changing += ChefConfigChanging;
-                RoleEnvironment.StatusCheck += Chef_StatusCheck;
+            Start(new TimeSpan( 0, 1, 0) );
+        }
 
-                // Start Chef Client - wait 30 seconds
-                Trace.TraceInformation("Chef Client - Attempting to start Chef-Client.");
-                using (var chefService = new ServiceController("chef-client"))
-                {
-                    if (chefService != null && chefService.Status != ServiceControllerStatus.Running)
-                    {
-                        chefService.Start();
-                        chefService.WaitForStatus(ServiceControllerStatus.Running, new TimeSpan(0, 0, 30));
-                        Trace.TraceInformation("Chef Client - Chef-Client Started.");
-                    }
-                    else
-                    {
-                        Trace.TraceInformation("Chef Client - Chef-Client previously running.");
-                    }
-                }
+        /// <summary>
+        /// Start Chef Client windows service. 
+        /// </summary>
+        public static void Start(TimeSpan timeToWait)
+        {
+            RoleEnvironment.Changing += ChefConfigChanging;
+            RoleEnvironment.StatusCheck += Chef_StatusCheck;
 
-                ClientService.statusCheckFilePath = CloudConfigurationManager.GetSetting("ChefClient_SetBusyCheck");
-            }
-            catch (System.ServiceProcess.TimeoutException)
-            {
-                Trace.TraceInformation("Chef Client - failed to start Chef Client within time range.");
-            }
-            catch (InvalidOperationException e)
-            {
-                Trace.TraceInformation("Chef Client - Invalid Operation, is the role running with elevated privileges. Ex:{0}.", e.ToString());
-            }
+            // Start Chef Client - wait 30 seconds
+            var service = new WindowsService() { Name = "chef-client", TimeToWait = timeToWait };
+            service.Start();
+            ClientService.statusCheckFilePath = CloudConfigurationManager.GetSetting("ChefClient_SetBusyCheck");
         }
 
         /// <summary>
@@ -114,6 +76,7 @@ namespace Microsoft.OnlinePublishing.Chef
             {
                 return;
             }
+
             e.SetBusy();
         }
 
@@ -139,7 +102,7 @@ namespace Microsoft.OnlinePublishing.Chef
                 c.ConfigurationSettingName == "ChefClient_Role" || 
                 c.ConfigurationSettingName == "ChefClient_Environment" ))
             {
-                Stop(new TimeSpan(0, 0, 5));
+                Stop(new TimeSpan(0, 0, 30), true);
                 e.Cancel = true;
             }
         }
