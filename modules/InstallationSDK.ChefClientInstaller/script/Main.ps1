@@ -276,6 +276,9 @@ if ($chefEnvironment)
 Copy-Item -Path $TemplateClientRb -Destination $pathToClientRb -Force
 $ClientRbObject | Save-ChefClientConfig -Path $pathToClientRb -Append
 
+# Setup Azure Ohai
+Export-ChefAzureOhaiHints
+
 start-service chef-client
 
 Write-Output "Script:main.ps1 exiting"

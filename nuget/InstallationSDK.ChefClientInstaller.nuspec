@@ -2,7 +2,7 @@
 <package>
   <metadata>
     <id>Microsoft.OnlinePublishing.InstallationSDK.ChefClientInstaller</id>
-    <version>0.1.61</version>
+    <version>0.1.7</version>
     <title>Microsoft Online Publishing Installation SDK Chef Client Installer</title>
     <authors>ampdmi@microsoft.com</authors>
     <owners>ampdmi@microsoft.com</owners>
@@ -10,14 +10,16 @@
     <description>PowerShell scripts for performing installation of Chef Client for Azure Roles.</description>
     <tags>Online-Media-Publishing MS-Internal-Only Azure Installation Deployment SDK</tags>
     <releaseNotes>
-        0.1.61:
+        0.1.7:
         - Terminate the Chef-Client processes if the service fails to stop in the allotted time.
+        0.1.6:
+        - Write Azure Role Environment information into an Ohai hints file, where the built in Azure Ohai plug-in can read from.
         0.1.5:
         - Added Role and Environment to be cscfg configurable. ChefClient_ServerUrl, ChefClient_Role,
         and ChefClient_Environment are now configurable from loud service config updates.
-        - Add a set instance busy check file and configuarable path in ChefClient_SetBusyCheck
+        - Add a set instance busy check file and configurable path in ChefClient_SetBusyCheck
         0.1.4:
-        - Added support for deploying the node-based encrypted_data_bag_secret
+        - Added support for deploying the node-based encrypted_data_bag_secret.
         0.1.3:
         - Removed Client MSI from package so it meets size requirements for MS-NuGet and NuGet.
         0.1.2:
@@ -39,12 +41,10 @@
   </metadata>
   <files>
     <file src="..\Nuget\Install.ps1" target="tools" />
-    
     <!-- InstallationSDK.ChefClientInstaller Module -->
     <file src="..\Modules\InstallationSDK.ChefClientInstaller\bin\InstallationSDK.ChefClientInstaller\InstallationSDK.ChefClientInstaller.psm1" target="content\Deployment\Modules\InstallationSDK.ChefClientInstaller" />
     <file src="..\Modules\InstallationSDK.ChefClientInstaller\bin\InstallationSDK.ChefClientInstaller\InstallationSDK.ChefClientInstaller.psd1" target="content\Deployment\Modules\InstallationSDK.ChefClientInstaller" />
     <file src="..\Modules\InstallationSDK.ChefClientInstaller\bin\InstallationSDK.ChefClientInstaller\resources\Readme.txt" target="content\Deployment\Modules\InstallationSDK.ChefClientInstaller\resources" />
-    <!-- <file src="..\Modules\InstallationSDK.ChefClientInstaller\bin\InstallationSDK.ChefClientInstaller\resources\*.msi" target="content\Deployment\Modules\InstallationSDK.ChefClientInstaller\resources" /> -->
     <file src="..\Modules\InstallationSDK.ChefClientInstaller\bin\InstallationSDK.ChefClientInstaller\code\*.*" target="content" />
     <file src="..\Modules\InstallationSDK.ChefClientInstaller\bin\InstallationSDK.ChefClientInstaller\script\*.*" target="content\Deployment" />
   </files>

@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<package>
+  <metadata>
+    <id>Microsoft.OnlinePublishing.InstallationSDK</id>
+    <version>1.1.0</version>
+    <title>Microsoft.OnlinePublishing.InstallationSDK</title>
+    <authors>ampdmi@microsoft.com</authors>
+    <owners>ampdmi@microsoft.com</owners>
+    <projectUrl>http://aka.ms/msompinstallationsdk</projectUrl>
+    <description>PowerShell scripts for performing service installation tasks in an Azure Cloud Service.</description>
+    <tags>Online-Media-Publishing MS-Internal-Only Azure Installation Deployment SDK</tags>
+    <releaseNotes>
+      1.1.0:
+      - Added the Get-CloudServiceConfigurationSettingValue for getting the value from the cscfg while running in Azure.
+      1.0.0:
+      - Initial Release
+
+      See http://aka.ms/msompinstallationsdk for complete release history.
+      Join the ampdmitalk DG to ask questions and take part in the deployment and monitoring community.
+    </releaseNotes>
+  </metadata>
+  <files>
+    <file src="..\Nuget\Install.ps1" target="tools" />
+    
+    <file src="..\Core\Main.ps1" target="content\Deployment\" />
+    <file src="..\Core\Start.ps1" target="content\Deployment\" />
+    <file src="..\Core\Start.cmd" target="content\Deployment\" />
+    
+    <!-- InstallationSDK.AzureServiceRuntime Module -->
+    <file src="..\Modules\InstallationSDK.AzureServiceRuntime\bin\InstallationSDK.AzureServiceRuntime\InstallationSDK.AzureServiceRuntime.psm1" target="content\Deployment\Modules\InstallationSDK.AzureServiceRuntime" />
+    <file src="..\Modules\InstallationSDK.AzureServiceRuntime\bin\InstallationSDK.AzureServiceRuntime\InstallationSDK.AzureServiceRuntime.psd1" target="content\Deployment\Modules\InstallationSDK.AzureServiceRuntime" />
+  </files>
+</package>

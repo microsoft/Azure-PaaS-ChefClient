@@ -98,7 +98,7 @@ function Get-ChefClientConfig
     {
         # Regex matches simple "somekey value" pattern
         # Parses out custom Ruby (like now = Time.new)
-        Get-Content -Path $Path | foreach  {
+        Get-Content -Path $Path | where { $_ } | foreach {
             if (-not ($_ -match "^[a-zA-Z0-9_]*\s*[:'`"0-9].*['`"]?" ))
             {
                 # Ran into this scenario before
@@ -223,7 +223,7 @@ function Save-ChefClientConfig
 
 function Get-ChefNodeList 
 {
-    <#
+  <#
     .SYNOPSIS
       Gets the list of nodes from the chef server
 
@@ -277,6 +277,106 @@ function Get-ChefNodeList
   }
 }
 
+function Export-ChefAzureOhaiHints
+{
+  <#
+    .SYNOPSIS
+    Generate Azure Ohai Hints File
+  #>
+  [CmdletBinding()]
+  param(
+    [ValidateNotNullOrEmpty()]
+    [string]$PathToOhaiHints = 'c:/chef/ohai/hints'
+  )
+
+    # There may be some issues with calling Get-CloudServiceRoleInstance, so call it twice to make sure we get the proper object
+    Get-CloudServiceRoleInstance -Current -ErrorAction SilentlyContinue | out-Null
+    $roleInstance = Get-CloudServiceRoleInstance -Current
+
+    # Because Ohai::Config[:hints_path] is actual ruby code, not a configuration settting, we can't use the ClientRBObject.
+    # So just hard code the path here. Alternatively, we could try to read/parse from the client.rb file directly, but that's costly.
+    # And since it's ruby code, it might be a non-string (path_to_hints.to_s or something weird like that) that PSH wouldn't know what to do with.
+    # This seemed the least hacky way...
+
+    # TL;DR - Important! If the path to \Ohai\Hints ($PathToOhaiHints) is changed, also change it in Client.Rb directly!
+
+    # Azure Ohai Plugin specifically looks for an "azure" hint file (which would be named azure.json)
+    New-Item $PathToOhaiHints -Force -ItemType Directory -ErrorAction SilentlyContinue
+    $azureJsonFile = Join-Path $PathToOhaiHints "azure.json"
+
+    New-Item -Type Directory -Force -Path $PathToOhaiHints -ErrorAction SilentlyContinue | Out-Null
+
+    $azureHints = @{}
+    $azureHints["deployment_id"] = $roleInstance.DeploymentID
+    $azureHints["instance_id"] = $roleInstance.Id
+    $azureHints["update_domain"] = $roleInstance.UpdateDomain
+    $azureHints["fault_domain"] = $roleInstance.FaultDomain
+    $azureHints["role"] = $roleInstance.Role.Name
+
+    $azureHints["instance_endpoints"] = @{}
+    foreach($endpointKey in $roleInstance.InstanceEndpoints.Keys) {
+        $endpoint = $roleInstance.InstanceEndpoints[$endpointKey]
+
+        $azureHints["instance_endpoints"][$endpointKey] = @{
+        "ip_endpoint" = Convert-ToStringSafe $endpoint.IPEndpoint
+        "public_ip_endpoint" = Convert-ToStringSafe $endpoint.PublicIPEndpoint
+        "protocol" = $endpoint.Protocol
+        }
+    }
+
+    $azureHints["virtual_ip_groups"] = @{}
+    foreach($ipGroupKey in $roleInstance.VirtualIPGroups.Keys) {
+        $group = $roleInstance.VirtualIPGroups[$ipGroupKey]
+        $vip_ip_endpoints = @{}
+
+        foreach($vipEndpointKey in $group.VirtualIPEndpoints.Keys) {
+            $vipEndpoint = $group.VirtualIPEndpoints[$vipEndpointKey]
+            $vip_instance_endpoints = @{}
+            foreach($instanceEndpointKey in $vipEndpoint.InstanceEndpoints.Keys) {
+                $instanceEndpoint = $vipEndpoint.InstanceEndpoints[$instanceEndpointKey]
+                $vip_instance_endpoints[(Convert-ToStringSafe $instanceEndpointKey)] = @{
+                    "ip_endpoint" = Convert-ToStringSafe $instanceEndpoint.IPEndpoint
+                    "public_ip_endpoint" = Convert-ToStringSafe $instanceEndpoint.PublicIPEndpoint
+                    "protocol" = $instanceEndpoint.Protocol
+                }
+            }
+
+            $vip_ip_endpoints[(Convert-ToStringSafe $vipEndpointKey)] = @{
+                "public_ip_address" = Convert-ToStringSafe $vipEndpoint.PublicIPAddress
+                "instance_endpoints" = $vip_instance_endpoints
+            }
+        }
+
+        $azureHints["virtual_ip_groups"][$ipGroupKey] = @{
+            "group_name" = $group.VirtualIPGroupName
+            "virtual_ip_endpoints" = $vip_ip_endpoints
+        }
+    }
+
+    # In my testing, it can go as deep as depth "6". Any less than that and the cmdlet will just call .ToString() on nested collections
+    $azureHints | ConvertTo-Json -Depth 6 | Set-Content $azureJsonFile
+}
+
+function Convert-ToStringSafe
+{
+  <#
+    .SYPNOSIS
+    Quick utility function to prevent things from getting too deserialized (e.g. IPAddress getting each of its properties deserialized)
+  #>
+  param(
+    $value
+  )
+
+    if($value -or ($value -eq 0))
+    {
+        $value.ToString()
+    }
+    else
+    {
+        ""
+    }
+}
+
 # Wrap cmd exe files to make things mockable. Can't use Start-Process because I want the output (Start-Process would write to a file first with -RedirectStandardOutput)
 function Invoke-Knife
 {
@@ -317,3 +417,4 @@ Export-ModuleMember Install-ChefClient
 Export-ModuleMember Get-ChefClientConfig
 Export-ModuleMember Save-ChefClientConfig
 Export-ModuleMember Get-ChefNodeList 
+Export-ModuleMember Export-ChefAzureOhaiHints
