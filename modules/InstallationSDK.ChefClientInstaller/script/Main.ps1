@@ -277,7 +277,7 @@ Copy-Item -Path $TemplateClientRb -Destination $pathToClientRb -Force
 $ClientRbObject | Save-ChefClientConfig -Path $pathToClientRb -Append
 
 # Setup Azure Ohai
-Export-ChefAzureOhaiHints
+Export-ChefAzureOhaiHints -Path "$RootPath/ohai/hints"
 
 start-service chef-client
 

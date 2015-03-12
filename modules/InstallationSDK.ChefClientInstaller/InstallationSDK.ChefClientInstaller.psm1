@@ -286,7 +286,7 @@ function Export-ChefAzureOhaiHints
   [CmdletBinding()]
   param(
     [ValidateNotNullOrEmpty()]
-    [string]$PathToOhaiHints = 'c:/chef/ohai/hints'
+    [string]$Path = 'c:/chef/ohai/hints'
   )
 
     # There may be some issues with calling Get-CloudServiceRoleInstance, so call it twice to make sure we get the proper object
@@ -298,13 +298,13 @@ function Export-ChefAzureOhaiHints
     # And since it's ruby code, it might be a non-string (path_to_hints.to_s or something weird like that) that PSH wouldn't know what to do with.
     # This seemed the least hacky way...
 
-    # TL;DR - Important! If the path to \Ohai\Hints ($PathToOhaiHints) is changed, also change it in Client.Rb directly!
+    # TL;DR - Important! If the path to \Ohai\Hints ($Path) is changed, also change it in Client.Rb directly!
 
     # Azure Ohai Plugin specifically looks for an "azure" hint file (which would be named azure.json)
-    New-Item $PathToOhaiHints -Force -ItemType Directory -ErrorAction SilentlyContinue
-    $azureJsonFile = Join-Path $PathToOhaiHints "azure.json"
+    New-Item $Path -Force -ItemType Directory -ErrorAction SilentlyContinue
+    $azureJsonFile = Join-Path $Path "azure.json"
 
-    New-Item -Type Directory -Force -Path $PathToOhaiHints -ErrorAction SilentlyContinue | Out-Null
+    New-Item -Type Directory -Force -Path $Path -ErrorAction SilentlyContinue | Out-Null
 
     $azureHints = @{}
     $azureHints["deployment_id"] = $roleInstance.DeploymentID

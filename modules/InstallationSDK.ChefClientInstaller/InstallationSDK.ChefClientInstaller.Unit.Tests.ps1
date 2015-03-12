@@ -34,7 +34,7 @@ $modulesToCleanup = @($ModuleUnderTest)
 
 
 Import-Module Pester
-Import-Module Powershellution
+Import-Module PowerShellution
 
 #region Helper Functions
 
@@ -373,7 +373,7 @@ InModuleScope $ModuleUnderTest {
         $roleInstance = Get-CloudServiceRoleInstance -Current
 
         $hintsDirectory = "TestDrive:\\Chef\Ohai\Hints"
-        Export-ChefAzureOhaiHints -pathToOhaiHints $hintsDirectory
+        Export-ChefAzureOhaiHints -path $hintsDirectory
 
         $expectedAzureHintFile = Join-Path $hintsDirectory "azure.json"
 
