@@ -247,6 +247,11 @@ else
 
 # Value from Cloud Service CsCfg always wins.
 $chefRole = Get-CloudServiceConfigurationSettingValue "ChefClient_Role"
+$chefEnvironment = Get-CloudServiceConfigurationSettingValue "ChefClient_Environment"
+$azureRegion = Get-CloudServiceConfigurationSettingValue "ChefClient_Region"
+$servicefunction = Get-CloudServiceConfigurationSettingValue "ChefClient_Function"
+$serviceName = Get-CloudServiceConfigurationSettingValue "ChefClient_ServiceName"
+
 # Create first-run-bootstrap.json to register new node with Chef Server
 if ($chefRole -or ($config -and $config.role))
 {
@@ -256,7 +261,19 @@ if ($chefRole -or ($config -and $config.role))
         $chefRole = $($config.role)
     }
     $bootStrapperFile = "first-run-bootstrap.json"
-    $bootStrapper = "{`r`n `"run_list`": [ `"role[$chefRole]`" ]`r`n}"
+    $bootStrapper = 
+@"
+{
+    "run_list": [ "role[$chefRole]" ],
+    "azure": {
+        "chef_environment":"$chefEnvironment",
+        "chef_role": "$chefRole",
+        "region": "$azureRegion",
+        "function": "$servicefunction",
+        "service_name": "$serviceName"
+    }
+}
+"@
     Write-Output "Setting bootstrap content: $bootStrapper"
     
     $pathToBootStrapper = Join-Path $RootPath $bootStrapperFile
