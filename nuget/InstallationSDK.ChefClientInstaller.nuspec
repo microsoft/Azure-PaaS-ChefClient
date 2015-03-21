@@ -4,9 +4,9 @@
     <id>Microsoft.OnlinePublishing.InstallationSDK.ChefClientInstaller</id>
     <version>0.1.7</version>
     <title>Microsoft Online Publishing Installation SDK Chef Client Installer</title>
-    <authors>ampdmi@microsoft.com</authors>
-    <owners>ampdmi@microsoft.com</owners>
-    <projectUrl>http://aka.ms/msompinstallationsdk</projectUrl>
+    <authors>Azure-PaaS-ChefClient</authors>
+    <owners>Azure-PaaS-ChefClient</owners>
+    <projectUrl>https://github.com/Microsoft/Azure-PaaS-ChefClient</projectUrl>
     <description>PowerShell scripts for performing installation of Chef Client for Azure Roles.</description>
     <tags>Online-Media-Publishing MS-Internal-Only Azure Installation Deployment SDK</tags>
     <releaseNotes>
@@ -28,7 +28,7 @@
         - BugFix:Upon OS update, client service is not reinstalled.
         0.1.0:
         - Initial Release
-        See http://aka.ms/msompinstallationsdk for complete release history.
+        See https://github.com/Microsoft/Azure-PaaS-ChefClient for complete release history.
         Join the ampdmitalk DG to ask questions and take part in the deployment and monitoring community.
     </releaseNotes>
     <dependencies>
@@ -42,10 +42,10 @@
   <files>
     <file src="..\Nuget\Install.ps1" target="tools" />
     <!-- InstallationSDK.ChefClientInstaller Module -->
-    <file src="..\Modules\InstallationSDK.ChefClientInstaller\bin\InstallationSDK.ChefClientInstaller\InstallationSDK.ChefClientInstaller.psm1" target="content\Deployment\Modules\InstallationSDK.ChefClientInstaller" />
-    <file src="..\Modules\InstallationSDK.ChefClientInstaller\bin\InstallationSDK.ChefClientInstaller\InstallationSDK.ChefClientInstaller.psd1" target="content\Deployment\Modules\InstallationSDK.ChefClientInstaller" />
-    <file src="..\Modules\InstallationSDK.ChefClientInstaller\bin\InstallationSDK.ChefClientInstaller\resources\Readme.txt" target="content\Deployment\Modules\InstallationSDK.ChefClientInstaller\resources" />
-    <file src="..\Modules\InstallationSDK.ChefClientInstaller\bin\InstallationSDK.ChefClientInstaller\code\*.*" target="content" />
-    <file src="..\Modules\InstallationSDK.ChefClientInstaller\bin\InstallationSDK.ChefClientInstaller\script\*.*" target="content\Deployment" />
+    <file src="..\Modules\InstallationSDK.ChefClientInstaller\InstallationSDK.ChefClientInstaller.psm1" target="content\Deployment\Modules\InstallationSDK.ChefClientInstaller" />
+    <file src="..\Modules\InstallationSDK.ChefClientInstaller\InstallationSDK.ChefClientInstaller.psd1" target="content\Deployment\Modules\InstallationSDK.ChefClientInstaller" />
+    <file src="..\Modules\InstallationSDK.ChefClientInstaller\resources\Readme.txt" target="content\Deployment\Modules\InstallationSDK.ChefClientInstaller\resources" />
+    <file src="..\Modules\InstallationSDK.ChefClientInstaller\code\*.*" target="content" />
+    <file src="..\Modules\InstallationSDK.ChefClientInstaller\script\*.*" target="content\Deployment" />
   </files>
 </package>
