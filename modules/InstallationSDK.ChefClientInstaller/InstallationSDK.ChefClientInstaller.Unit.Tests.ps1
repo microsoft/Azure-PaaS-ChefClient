@@ -24,9 +24,7 @@
       to install 
 #>
 $ModuleUnderTest = "InstallationSDK.ChefClientInstaller"
-$PSProjDepedencies = @(
-    Join-Path $PSScriptRoot "..\InstallationSDK.AzureServiceRuntime\InstallationSDK.AzureServiceRuntime.psproj"
-    )
+$PSProjDepedencies = @( )
 $ModuleDependencies = @()
 $ErrorActionPreference = "STOP"
 
@@ -34,7 +32,6 @@ $modulesToCleanup = @($ModuleUnderTest)
 
 
 Import-Module Pester
-Import-Module Powershellution
 
 #region Helper Functions
 
@@ -373,7 +370,7 @@ InModuleScope $ModuleUnderTest {
         $roleInstance = Get-CloudServiceRoleInstance -Current
 
         $hintsDirectory = "TestDrive:\\Chef\Ohai\Hints"
-        Export-ChefAzureOhaiHints -pathToOhaiHints $hintsDirectory
+        Export-ChefAzureOhaiHints -path $hintsDirectory
 
         $expectedAzureHintFile = Join-Path $hintsDirectory "azure.json"
 
