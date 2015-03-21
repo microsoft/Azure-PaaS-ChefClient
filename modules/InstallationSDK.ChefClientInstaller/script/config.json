@@ -1,0 +1,10 @@
+{
+  "name": "chefClient",
+  "role": "",
+  "pollInterval": "",
+  "serverUrl": "",
+  "sslVerifyMode": "",
+  "validationClientName": "",
+  "validationKey": "",
+  "encrypted_data_bag_secret_file":  ""
+}
