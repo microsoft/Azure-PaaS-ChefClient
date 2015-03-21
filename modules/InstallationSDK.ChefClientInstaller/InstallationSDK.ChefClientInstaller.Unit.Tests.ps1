@@ -71,6 +71,60 @@ function Cleanup
     Remove-Variable -Name TestDrive -Force -Scope Script -ErrorAction SilentlyContinue
 }
 
+function CreateRoleInstanceEndpoint
+{
+param(
+    [string]$parsableIPAddress,
+    [string]$parsableIPAddressPublic,
+    [string]$protocol
+)
+
+    $ip = $parsableIPAddress.Split(":")
+    $ipEndpoint = New-Object System.Net.IPEndPoint -ArgumentList ([System.Net.IPAddress]$ip[0], $ip[1])
+
+    $publicIpEndpoint = $null
+    if($parsableIPAddressPublic)
+    {
+        $public = $parsableIPAddressPublic.Split(":")
+        $publicIpEndpoint = New-Object System.Net.IPEndPoint -ArgumentList ([System.Net.IPAddress]$public[0], $public[1])
+    }
+
+    New-Object psobject -Property @{
+        "IPEndpoint" = $ipEndpoint
+        "PublicIPEndpoint" = $publicIpEndpoint
+        "Protocol" = $protocol
+    }
+}
+
+function CreateVirtualIPEndpoint
+{
+param(
+    [string]$groupName,
+    [System.Net.IPAddress[]]$ipAddresses,
+    $roleInstanceEndpoints
+)
+    # Weird dictionary thingy
+    $instanceEndpoints = @{}
+    $i = 0
+    foreach($roleInstanceEndpoint in $roleInstanceEndpoints)
+    {
+        $instanceEndpoints[($i++)] = $roleInstanceEndpoint
+    }
+
+    $virtualIpEndpoints = @{}
+    foreach($ipAddress in $ipAddresses)
+    {
+        $virtualIpEndpoints[$ipAddress] = New-Object psobject -Property @{
+            "PublicIPAddress" = $ipAddress
+            "InstanceEndpoints" = $instanceEndpoints
+        }
+    }
+
+    New-Object psobject -Property @{
+        "VirtualIPGroupName" = $groupName
+        "VirtualIPEndpoints" = $virtualIpEndpoints
+    }
+}
 #endregion
 
 #region Setup
@@ -87,9 +141,15 @@ Cleanup
 WriteVerbose "Building Project Dependencies"
 foreach ($dependantPSproject in $PSProjDepedencies)
 {
-    New-ProjectBuild -Path $dependantPSproject
-    $moduleName = [IO.Path]::GetFileNameWithoutExtension((Split-Path -Leaf $dependantPSproject))
     $moduleFolder = Join-Path (Split-Path $dependantPSproject) "bin"
+    $moduleName = [IO.Path]::GetFileNameWithoutExtension((Split-Path -Leaf $dependantPSproject))
+
+    if (Test-Path $moduleFolder)
+    {
+        Remove-Item -Path $moduleFolder -Recurse -Force
+    }
+
+    New-ProjectBuild -Path $dependantPSproject
 
     SafeAddModuleFolderToPSRoot $moduleFolder
     ImportModuleAndToCleanupList $moduleName
@@ -98,7 +158,13 @@ foreach ($dependantPSproject in $PSProjDepedencies)
 #
 # Build Module Under Test
 #
+$ModuleRoot = Join-Path $PSScriptRoot "bin"
 WriteVerbose "Building the Module Under Test"
+if (Test-Path $ModuleRoot)
+{
+    Remove-Item -Path $ModuleRoot -Recurse -Force
+}
+
 $psprojFile = Resolve-Path (Join-Path $PSScriptRoot "*.psproj")
 Write-Verbose "Building psproj: $psprojFile"
 New-ProjectBuild -Path $psprojFile
@@ -107,7 +173,6 @@ New-ProjectBuild -Path $psprojFile
 # Loading Module-Under-Test
 #
 WriteVerbose "Loading Module-Under-Test"
-$ModuleRoot = Join-Path $PSScriptRoot "bin"
 SafeAddModuleFolderToPSRoot $moduleRoot
 Import-Module $ModuleUnderTest
 
@@ -270,6 +335,63 @@ InModuleScope $ModuleUnderTest {
 
         It "Path environment variable should installation directory" {
             $path | Should Match ([Regex]::Escape("$InstallLocation\chef\bin"))
+        }
+    }
+
+    Describe "Export-ChefAzureOhaiHints" {
+        Mock Get-CloudServiceRoleInstance {
+            param([Switch]$Current)
+
+            # These RoleInstanceEndpoints were taken directly from a "test" azure instance
+            $endpoint1 = CreateRoleInstanceEndpoint "100.68.46.96:80" "255.255.255.255:80" "http"
+            $rdp = CreateRoleInstanceEndpoint "100.68.46.96:3389" $null "tcp"
+            $rdpInput = CreateRoleInstanceEndpoint "100.68.46.96:20000" "255.255.255.255:3389" "tcp"
+
+    
+            New-Object psobject -Property @{
+                "DeploymentID" = "9662c0f4355042c7b2eae7dd06e70c28"
+                "ID" = "WebRole1_IN_0"
+                "UpdateDomain" = 0
+                "FaultDomain" = 0
+                "Role" = New-Object psobject -property @{"Name" = "WebRole1"}
+                "InstanceEndpoints" = @{
+                    "Endpoint1" = $endpoint1
+                    "Microsoft.WindowsAzure.Plugins.RemoteAccess.Rdp" = $rdp
+                    "Microsoft.WindowsAzure.Plugins.RemoteForwarder.RdpInput" = $rdpInput
+                }
+                # Couldn't get a good working sample of VirtualIPGroups, these VirtualIPEndpoints were filled in using reasonable, expected values
+                "VirtualIPGroups" = @{
+                    "Group1" = CreateVirtualIPEndpoint "SomeGroup1" ("192.167.0.1","192.167.0.2","127.0.0.1") ($endpoint1,$rdp,$rdpInput)
+                    "Group2" = CreateVirtualIPEndpoint "SomeGroup2" ("255.255.255.255","0.0.0.0","169.245.214.223") ($endpoint1,$rdp)
+                }
+            }
+        }
+
+        $roleInstance = Get-CloudServiceRoleInstance -Current
+
+        $hintsDirectory = "TestDrive:\\Chef\Ohai\Hints"
+        Export-ChefAzureOhaiHints -path $hintsDirectory
+
+        $expectedAzureHintFile = Join-Path $hintsDirectory "azure.json"
+
+        It "Should Parse Correctly" {
+            $expectedAzureHintFile | Should Exist
+            { ConvertFrom-Json ((Get-Content $expectedAzureHintFile) -join "`n")  } | Should Not Throw
+        }
+
+        It "Should have every property defined" {
+            $deserialized = ConvertFrom-Json ((Get-Content $expectedAzureHintFile) -join "`n")
+            $deserialized.deployment_id | Should Not BeNullOrEmpty
+            $deserialized.deployment_id | Should BeExactly $roleInstance.DeploymentID
+            $deserialized.role | Should Not BeNullOrEmpty
+            $deserialized.role | Should BeExactly $roleInstance.Role.Name
+            $deserialized.instance_endpoints.'Microsoft.WindowsAzure.Plugins.RemoteAccess.Rdp'.ip_endpoint | Should Not BeNullOrEmpty
+            $deserialized.instance_endpoints.'Microsoft.WindowsAzure.Plugins.RemoteAccess.Rdp'.ip_endpoint | Should BeExactly $roleInstance.InstanceEndpoints["Microsoft.WindowsAzure.Plugins.RemoteAccess.Rdp"].IPEndpoint.ToString()
+            $deserialized.instance_endpoints.'Microsoft.WindowsAzure.Plugins.RemoteAccess.Rdp'.public_ip_endpoint | Should BeNullOrEmpty
+            $deserialized.virtual_ip_groups.'Group1'.group_name | Should Not BeNullOrEmpty
+            $deserialized.virtual_ip_groups.'Group1'.group_name | Should BeExactly $roleInstance.VirtualIPGroups["Group1"].VirtualIPGroupName
+            $deserialized.virtual_ip_groups.'Group1'.virtual_ip_endpoints.'192.167.0.1'.instance_endpoints.'0'.ip_endpoint | Should Not BeNullOrEmpty
+            $deserialized.virtual_ip_groups.'Group1'.virtual_ip_endpoints.'192.167.0.1'.instance_endpoints.'0'.ip_endpoint | Should BeExactly $roleInstance.VirtualIPGroups["Group1"].VirtualIPEndpoints[[Net.IPAddress]"192.167.0.1"].InstanceEndpoints[0].IPEndpoint.ToString()
         }
     }
 }

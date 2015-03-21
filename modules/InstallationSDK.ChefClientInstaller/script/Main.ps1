@@ -64,6 +64,14 @@ if ($config -and $config.name)
     $name = $config.name
 }
 
+# Allow to pull from CSCFG allowing for easier targetting of node name prefix, this can only be set on initial deployment
+# once the node name is established, the exisitng name will always win.
+$cscfgName = Get-CloudServiceConfigurationSettingValue "ChefClient_Name"
+if ($cscfgName)
+{
+    $name = $cscfgName
+}
+
 # Add Instance number to the node name
 Write-Output "Role Instance Name: $($roleInstance.Id)"
 $nodeName = $($roleInstance.Id).Replace($roleName, $name)
@@ -239,6 +247,11 @@ else
 
 # Value from Cloud Service CsCfg always wins.
 $chefRole = Get-CloudServiceConfigurationSettingValue "ChefClient_Role"
+$chefEnvironment = Get-CloudServiceConfigurationSettingValue "ChefClient_Environment"
+$azureRegion = Get-CloudServiceConfigurationSettingValue "ChefClient_Region"
+$servicefunction = Get-CloudServiceConfigurationSettingValue "ChefClient_Function"
+$serviceName = Get-CloudServiceConfigurationSettingValue "ChefClient_ServiceName"
+
 # Create first-run-bootstrap.json to register new node with Chef Server
 if ($chefRole -or ($config -and $config.role))
 {
@@ -248,7 +261,19 @@ if ($chefRole -or ($config -and $config.role))
         $chefRole = $($config.role)
     }
     $bootStrapperFile = "first-run-bootstrap.json"
-    $bootStrapper = "{`r`n `"run_list`": [ `"role[$chefRole]`" ]`r`n}"
+    $bootStrapper = 
+@"
+{
+    "run_list": [ "role[$chefRole]" ],
+    "azure": {
+        "chef_environment":"$chefEnvironment",
+        "chef_role": "$chefRole",
+        "region": "$azureRegion",
+        "function": "$servicefunction",
+        "service_name": "$serviceName"
+    }
+}
+"@
     Write-Output "Setting bootstrap content: $bootStrapper"
     
     $pathToBootStrapper = Join-Path $RootPath $bootStrapperFile
@@ -267,6 +292,9 @@ if ($chefEnvironment)
 
 Copy-Item -Path $TemplateClientRb -Destination $pathToClientRb -Force
 $ClientRbObject | Save-ChefClientConfig -Path $pathToClientRb -Append
+
+# Setup Azure Ohai
+Export-ChefAzureOhaiHints -Path "$RootPath/ohai/hints"
 
 start-service chef-client
 
