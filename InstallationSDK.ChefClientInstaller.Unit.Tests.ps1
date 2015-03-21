@@ -24,9 +24,7 @@
       to install 
 #>
 $ModuleUnderTest = "InstallationSDK.ChefClientInstaller"
-$PSProjDepedencies = @(
-    Join-Path $PSScriptRoot "..\InstallationSDK.AzureServiceRuntime\InstallationSDK.AzureServiceRuntime.psproj"
-    )
+$PSProjDepedencies = @( )
 $ModuleDependencies = @()
 $ErrorActionPreference = "STOP"
 
@@ -34,7 +32,6 @@ $modulesToCleanup = @($ModuleUnderTest)
 
 
 Import-Module Pester
-Import-Module Powershellution
 
 #region Helper Functions
 
