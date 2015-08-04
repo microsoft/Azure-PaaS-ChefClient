@@ -52,15 +52,35 @@ Configured for local package sources (where your newly packages reside), click '
 Your web role will now contain the two code (.cs) files and a deployment folder with the configuration, script, and two PowerShell Modules.
 
 ###Configuration
-There are two configuration paths to take, from config.json or directly in your cloud service configuration (.cscfg) file. They are limited based on the current functionlity of the (script) main.ps1, but can be extended (read further below in *Extending*).
+There are two configuration paths to take, from config.json or directly in your cloud service configuration (.cscfg) file. They are limited based on the current functionality of the (script) main.ps1, but can be extended (read further below in *Extending*). These help in altering your client.rb during deployment time to transform your client.rb if needed, if not just include the desired client.rb for your Azure deployment of your cloud service. If you do employ one of these additional configuration steps, the client.rb will be augmented with the additional settings in the client.json or cloudservice.cscfg (yielding precedence to the cscfg data). 
+
 ####config.json
 ~~~json
-TBA
+{
+  "name": "node_name_prefix",
+  "environment": "chef_environment",
+  "role": "chef_role_name",
+  "pollInterval": "180",
+  "serverUrl": "https://manage.chef.io/organizations/myorg",
+  "sslVerifyMode": ":verify_peer",
+  "validationClientName": "myorg-validator",
+  "validationKey": "myorg-validator.pem",
+  "encrypted_data_bag_secret_file": "encrypted_data_bag_secret"
+}
 ~~~
 
 ####cloudService.cscfg
 ```xml
-TBA
+<ConfigurationSettings>
+  <!-- Chef Settings -->
+  <Setting name="ChefClient_ServerUrl" value="https://manage.chef.io/organizations/myorg" />
+  <Setting name="ChefClient_Role" value="chef_role_name" />
+  <Setting name="ChefClient_Environment" value="chef_environment" />
+  <Setting name="ChefClient_Region" value="azure_region_name" />
+  <Setting name="ChefClient_Function" value="azure_function_eg_production_or_test" />
+  <Setting name="ChefClient_ServiceName" value="cloud_service_name" />
+  <Setting name="ChefClient_Name" value="nade_name_prefix" />
+</ConfigurationSettings>
 ```
 
 ##Data available to your recipes
