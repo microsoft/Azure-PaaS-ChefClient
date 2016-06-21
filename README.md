@@ -105,6 +105,9 @@ The last five, come directly from your configured service deployment allowing to
 ### Extending
 The ./deployment/script file [main.ps1]() can be altered in this location to meet your *more specific* needs if necessary, utilizing the Modules exported functions or additional ones you add to your project.
 
+## Code of Conduct
+This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/). For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
+
 ----------
 ## License
 The MIT License (MIT)
